@@ -27,7 +27,8 @@ app.get("/posts", async (req, res) => {
                 usuarios.nome,
                 post.titulo,
                 post.conteudo,
-                post.criado_em
+                post.criado_em,
+                post.id AS post_id
             FROM post
             JOIN usuarios
             ON post.usuario_id = usuarios.id
@@ -40,7 +41,7 @@ app.get("/posts", async (req, res) => {
     }
 })
 
-app.post("/post", async (req, res) => {
+app.post("/posts", async (req, res) => {
   try {
     const { titulo, conteudo, usuario_id } = req.body;
     const resultado = await pool.query(
@@ -61,6 +62,45 @@ app.post("/post", async (req, res) => {
     });
   }
 });
+
+app.put("/posts/:id", async (req, res) => {
+    try {
+        const {id} = req.params;
+        const {titulo, conteudo} = req.body;
+
+        const resultado = await pool.query(
+            `UPDATE post SET titulo=$1, conteudo=$2 WHERE id=$3 RETURNING *`,
+            [titulo, conteudo, id],
+        );
+        res.status(200).json({
+            mensagem: "Post atualizado com sucesso",
+            post: resultado.rows[0]
+        });
+    } catch (erro) {
+        res.status(500).json({
+            erro: "Erro ao atualizar post"
+        })
+    }
+})
+
+app.delete("/posts/:id", async (req, res)=>{
+    try {
+        const {id} = req.params;
+        const resultado = await pool.query(
+            `DELETE FROM post WHERE id=$1 RETURNING *`,
+            [id],
+        );
+
+        res.json({
+            mensagem: "Post deletado com sucesso",
+            post: resultado.rows[0]
+        });
+    } catch (erro) {
+        res.status(500).json({
+            erro: "Erro ao deletar post"
+        });
+    }
+})
 
 
 module.exports = app;
