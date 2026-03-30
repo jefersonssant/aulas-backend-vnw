@@ -45,25 +45,24 @@ app.get("/posts", async (req, res) => {
 
 app.post("/usuarios", validarUsuarios, async (req, res) => {
   try {
-    const { nome, email, senha } = req.body;
-    const resultado = await pool.query(
-      `
-        INSERT INTO usuarios (nome, email, senha)
-        VALUES ($1, $2, $3)
-        RETURNING *
-      `,
-      [nome, email, senha],
-    );
-    res.status(201).json({
-      mensagem: "Usuário criado com sucesso",
-      usuario: resultado.rows[0],
-    });
+    const {nome, email, senha} = req.body;
+    const resultado = await pool.query(`
+      INSERT INTO usuarios (nome, email, senha)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `,
+    [nome, email, senha]
+  );
+  res.status(201).json({
+    mensagem: "Usuário criado com sucesso",
+    usuario: resultado.rows[0]
+  })
   } catch (erro) {
     res.status(500).json({
-      erro: "Erro ao criar usuário",
-    });
+      erro: "Erro ao criar usuário"
+    })
   }
-});
+})
 
 app.post("/posts", validarPost, async (req, res) => {
   try {
@@ -87,7 +86,7 @@ app.post("/posts", validarPost, async (req, res) => {
   }
 });
 
-app.put("/posts/:id", async (req, res) => {
+app.put("/posts/:id", validarPost, async (req, res) => {
   try {
     const { id } = req.params;
     const { titulo, conteudo } = req.body;
