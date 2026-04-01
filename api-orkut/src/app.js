@@ -1,7 +1,10 @@
+require("dotenv").config();
 const express = require("express");
 const pool = require("./config/db");
 const validarUsuarios = require("./validacao/usuarios");
 const validarPost = require("./validacao/post");
+const jwt = require("jsonwebtoken");
+const auth = require("./auth/authLogin")
 
 
 const app = express();
@@ -10,6 +13,69 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("<h1>Rede Social!</h1>");
 });
+
+// Rota Cadastro novo usuário
+// app.post("/usuarios", validarUsuarios, async (req, res) => {
+//   try {
+//     const {nome, email, senha} = req.body;
+//     const resultado = await pool.query(`
+//       INSERT INTO usuarios (nome, email, senha)
+//       VALUES ($1, $2, $3)
+//       RETURNING *
+//     `,
+//     [nome, email, senha]
+//   );
+//   res.status(201).json({
+//     mensagem: "Usuário criado com sucesso",
+//     usuario: resultado.rows[0]
+//   })
+//   } catch (erro) {
+//     res.status(500).json({
+//       erro: "Erro ao criar usuário"
+//     })
+//   }
+// })
+
+// Rota de Login
+app.post("/login", async (req, res) => {
+  const {email, senha} = req.body;
+
+  try {
+    const usuario = await pool.query(`
+      SELECT * FROM usuarios WHERE email=$1
+    `,
+      [email]
+  );
+
+  if (usuario.rows.length === 0) {
+    return res.status(400).json({
+      mensagem: "Usuário não encontrado"
+    })
+  }
+
+  if (senha !== usuario.rows[0].senha) {
+    return res.status(400).json({
+      mensagem: "Senha inválida"
+    })
+  }
+
+  const token = jwt.sign(
+    {id: usuario.rows[0].id},
+    process.env.JWT_SECRET,
+    {expiresIn: '1h'}
+  )
+
+  console.log('Login secret:', process.env.JWT_SECRET);
+  res.json({token})
+
+  } catch (error) {
+    console.log('Erro no login:', error);
+    res.status(500).json({
+      mensagem: "Erro interno do servidor"
+    })
+  }
+})
+
 
 app.get("/usuarios", async (req, res) => {
   try {
@@ -43,37 +109,17 @@ app.get("/posts", async (req, res) => {
   }
 });
 
-app.post("/usuarios", validarUsuarios, async (req, res) => {
-  try {
-    const {nome, email, senha} = req.body;
-    const resultado = await pool.query(`
-      INSERT INTO usuarios (nome, email, senha)
-      VALUES ($1, $2, $3)
-      RETURNING *
-    `,
-    [nome, email, senha]
-  );
-  res.status(201).json({
-    mensagem: "Usuário criado com sucesso",
-    usuario: resultado.rows[0]
-  })
-  } catch (erro) {
-    res.status(500).json({
-      erro: "Erro ao criar usuário"
-    })
-  }
-})
 
-app.post("/posts", validarPost, async (req, res) => {
+app.post("/posts", auth, validarPost, async (req, res) => {
   try {
-    const { titulo, conteudo, usuario_id } = req.body;
+    const { titulo, conteudo } = req.body;
     const resultado = await pool.query(
       `
       INSERT INTO post (titulo, conteudo, usuario_id)
       VALUES ($1, $2, $3)
       RETURNING *
       `,
-      [titulo, conteudo, usuario_id],
+      [titulo, conteudo, req.usuario.id],
     );
     res.status(201).json({
       mensagem: "Post criado com sucesso",
